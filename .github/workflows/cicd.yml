@@ -1,0 +1,77 @@
+name: CI/CD Pipeline - Super Mario RPG
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  security-and-quality:
+    name: Análisis de Seguridad y Calidad
+    runs-on: ubuntu-latest
+    steps:
+      # Step 1: Descargar el código
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Necesario para que Gitleaks y SonarQube analicen todo el historial
+
+      # Step 2: Escaneo de secretos con Gitleaks
+      - name: Gitleaks Scan (Secret Detection)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # continue-on-error: true # Opcional: descomenta si no quieres bloquear el pipeline por advertencias en fase inicial
+
+      # Step 3: Análisis estático de código con SonarQube
+      # En un entorno real, requiere un servidor de SonarQube activo.
+      # Se incluye configurado de manera que continue-on-error: true para fines educativos,
+      # permitiendo que el pipeline pase si aún no has configurado tus secretos de SonarQube.
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true
+
+  build-and-push:
+    name: Build & Push to Amazon ECR
+    needs: security-and-quality
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' # Solo pushea a ECR cuando se hace merge/push en ramas principales
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # Step 1: Configurar credenciales de AWS
+      # Debes agregar AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY en los secretos de tu repositorio GitHub
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      # Step 2: Autenticación en Amazon ECR
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Step 3: Construcción y subida de la imagen Docker
+      # ECR_REPOSITORY debe ser configurado en los secretos o variables de tu repositorio
+      - name: Build, Tag, and Push Image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY || 'mario-rpg-repo' }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Cambiamos al directorio de la aplicación
+          cd mario-rpg
+          
+          # Compilar imagen localmente
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
+          
+          # Subir la etiqueta específica del Commit SHA y la etiqueta 'latest'
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest

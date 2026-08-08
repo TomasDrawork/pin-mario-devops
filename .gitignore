@@ -1,0 +1,20 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+.terraform.lock.hcl
+
+# SSH Keys & Secrets
+*.pem
+*.key
+id_rsa*
+
+# Node / App dependencies
+node_modules/
+dist/
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db

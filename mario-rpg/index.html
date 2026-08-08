@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Mario RPG - DevOps Edition</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>SUPER MARIO RPG</h1>
+            <div class="subtitle">DEVOPS EDITION</div>
+        </header>
+
+        <div id="game-wrapper">
+            <canvas id="gameCanvas" width="640" height="400"></canvas>
+            <div id="ui-overlay" class="overlay-screen">
+                <div class="content">
+                    <h2>PRESS START</h2>
+                    <p class="blink">CLICK TO PLAY</p>
+                    <div class="controls-info">
+                        <p>Controls: Use [Space] or [Arrow Up] to Jump / Dodge Bowser's Fireballs!</p>
+                    </div>
+                </div>
+            </div>
+            <div id="gameover-overlay" class="overlay-screen hidden">
+                <div class="content">
+                    <h2 class="gameover-text">GAME OVER</h2>
+                    <p>Bowser caught you!</p>
+                    <p>Score: <span id="final-score">0</span></p>
+                    <p class="blink">CLICK TO RESTART</p>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <div class="status-bar">
+                <span class="status-item">ECR: <span class="status-value active">CONNECTED</span></span>
+                <span class="status-item">ALB: <span class="status-value active">ROUTING</span></span>
+                <span class="status-item">EC2: <span class="status-value active">RUNNING</span></span>
+            </div>
+            <p class="footer-text">Desplegado automáticamente mediante Terraform y CI/CD Pipeline</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
