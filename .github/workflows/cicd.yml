@@ -8,32 +8,65 @@ on:
 
 jobs:
   security-and-quality:
-    name: Análisis de Seguridad y Calidad
+    name: Análisis de Seguridad, Calidad y SBOM
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Descargar el código
+      # Step 1: Descargar el código del repositorio
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necesario para que Gitleaks y SonarQube analicen todo el historial
+          fetch-depth: 0 # Requerido para Gitleaks e histórico de git
 
       # Step 2: Escaneo de secretos con Gitleaks
       - name: Gitleaks Scan (Secret Detection)
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # continue-on-error: true # Opcional: descomenta si no quieres bloquear el pipeline por advertencias en fase inicial
 
-      # Step 3: Análisis estático de código con SonarQube
-      # En un entorno real, requiere un servidor de SonarQube activo.
-      # Se incluye configurado de manera que continue-on-error: true para fines educativos,
-      # permitiendo que el pipeline pase si aún no has configurado tus secretos de SonarQube.
+      # Step 3: Configurar Node.js y correr ESLint para validar código JS
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies and Run ESLint
+        run: |
+          cd mario-rpg
+          npm install
+          npm run lint
+
+      # Step 4: Análisis de Vulnerabilidades con Snyk
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/node@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          working-directory: mario-rpg
+        continue-on-error: true # Permite pasar si aún no configuras el token en GitHub Secrets
+
+      # Step 5: Análisis estático de código con SonarQube
       - name: SonarQube Scan
         uses: sonarsource/sonarqube-scan-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-        continue-on-error: true
+        continue-on-error: true # Para fines educativos
+
+      # Step 6: Generación del SBOM (Software Bill of Materials) usando CycloneDX
+      - name: Generate SBOM (CycloneDX)
+        uses: anchore/sbom-action@v0
+        with:
+          path: ./mario-rpg
+          format: cyclonedx-json
+          output-file: sbom.json
+
+      # Step 7: Subir el SBOM como artefacto de la ejecución de GitHub Actions
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CycloneDX-SBOM
+          path: sbom.json
 
   build-and-push:
     name: Build & Push to Amazon ECR

@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 5s # Frecuencia con la que se recolectan las métricas (5 segundos es ideal para desarrollo)
+
+scrape_configs:
+  # Tarea de scraping para obtener métricas de Nginx
+  - job_name: 'nginx-exporter'
+    static_configs:
+      - targets: ['nginx-exporter:9113'] # Nombre del contenedor del exporter y su puerto

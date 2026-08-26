@@ -22,29 +22,99 @@ resource "aws_instance" "mario_app" {
   vpc_security_group_ids = [aws_security_group.ec2.id]
   iam_instance_profile = aws_iam_instance_profile.ec2_profile.name
 
-  # Script de arranque (User Data) para instalar Docker y correr el contenedor
+  # Script de arranque (User Data) para instalar Docker, Docker Compose y correr la app + monitoreo
   user_data = <<-EOF
               #!/bin/bash
-              # 1. Actualizar el sistema
+              # 1. Actualizar el sistema e instalar Docker y Docker Compose
               dnf update -y
-
-              # 2. Instalar Docker
               dnf install -y docker
               systemctl start docker
               systemctl enable docker
-
-              # 3. Dar permisos al usuario del sistema
               usermod -aG docker ec2-user
 
-              # 4. Iniciar sesión en AWS ECR
-              # Nota: Amazon Linux 2023 ya incluye aws-cli preinstalado
+              # Instalar el plugin de Docker Compose para Amazon Linux 2023
+              dnf install -y docker-compose-plugin
+
+              # 2. Crear la estructura de directorios para la configuración de monitoreo
+              mkdir -p /opt/mario-app/monitoring/prometheus
+              mkdir -p /opt/mario-app/monitoring/grafana/provisioning/datasources
+
+              # 3. Crear el archivo prometheus.yml
+              cat <<'INNER_EOF' > /opt/mario-app/monitoring/prometheus/prometheus.yml
+              global:
+                scrape_interval: 10s
+
+              scrape_configs:
+                - job_name: 'nginx-exporter'
+                  static_configs:
+                    - targets: ['nginx-exporter:9113']
+              INNER_EOF
+
+              # 4. Crear el archivo datasource.yml para Grafana
+              cat <<'INNER_EOF' > /opt/mario-app/monitoring/grafana/provisioning/datasources/datasource.yml
+              apiVersion: 1
+
+              datasources:
+                - name: Prometheus
+                  type: prometheus
+                  access: proxy
+                  url: http://prometheus:9090
+                  isDefault: true
+              INNER_EOF
+
+              # 5. Crear el archivo docker-compose.yml adaptado para AWS (usa la imagen del ECR)
+              cat <<'INNER_EOF' > /opt/mario-app/docker-compose.yml
+              version: '3.8'
+
+              services:
+                mario-app:
+                  image: ${aws_ecr_repository.mario_repo.repository_url}:latest
+                  container_name: mario-app
+                  ports:
+                    - "80:80" # El balanceador ALB enviará tráfico al puerto 80 del host
+                  restart: always
+
+                nginx-exporter:
+                  image: nginx/nginx-prometheus-exporter:latest
+                  container_name: nginx-exporter
+                  command:
+                    - -nginx.scrape-uri=http://mario-app/stub_status
+                  ports:
+                    - "9113:9113"
+                  depends_on:
+                    - mario-app
+                  restart: always
+
+                prometheus:
+                  image: prom/prometheus:latest
+                  container_name: prometheus
+                  volumes:
+                    - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+                  ports:
+                    - "9090:9090"
+                  depends_on:
+                    - nginx-exporter
+                  restart: always
+
+                grafana:
+                  image: grafana/grafana:latest
+                  container_name: grafana
+                  ports:
+                    - "3000:3000" # Acceso privado via túnel SSM port-forwarding
+                  volumes:
+                    - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+                  environment:
+                    - GF_SECURITY_ADMIN_PASSWORD=admin
+                  depends_on:
+                    - prometheus
+                  restart: always
+              INNER_EOF
+
+              # 6. Autenticarse en ECR y levantar los servicios
               aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.mario_repo.repository_url}
-
-              # 5. Descargar la imagen del repositorio
-              docker pull ${aws_ecr_repository.mario_repo.repository_url}:latest
-
-              # 6. Ejecutar el contenedor escuchando en el puerto 80
-              docker run -d --name mario-rpg -p 80:80 --restart always ${aws_ecr_repository.mario_repo.repository_url}:latest
+              
+              cd /opt/mario-app
+              docker compose up -d
               EOF
 
   # metadata_options para forzar el uso de IMDSv2 (buena práctica de seguridad)

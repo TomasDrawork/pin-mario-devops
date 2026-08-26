@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # 1. El contenedor del juego Mario RPG
+  mario-app:
+    build:
+      context: ./mario-rpg
+      dockerfile: Dockerfile
+    container_name: mario-app
+    ports:
+      - "8081:80" # Podrás jugar en http://localhost:8080
+    restart: always
+
+  # 2. El Exportador de métricas de Nginx
+  # Traduce el stub_status de Nginx a un formato que Prometheus entiende
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:latest
+    container_name: nginx-exporter
+    command:
+      - -nginx.scrape-uri=http://mario-app/stub_status
+    ports:
+      - "9113:9113"
+    depends_on:
+      - mario-app
+    restart: always
+
+  # 3. Servidor Prometheus
+  # Recolecta y almacena las métricas temporales
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090" # Interfaz web de Prometheus en http://localhost:9090
+    depends_on:
+      - nginx-exporter
+    restart: always
+
+  # 4. Servidor Grafana
+  # Grafica y visualiza las métricas en un dashboard web
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000" # Interfaz web de Grafana en http://localhost:3000
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin # Contraseña inicial (Usuario: admin)
+    depends_on:
+      - prometheus
+    restart: always
