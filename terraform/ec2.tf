@@ -32,8 +32,11 @@ resource "aws_instance" "mario_app" {
               systemctl enable docker
               usermod -aG docker ec2-user
 
-              # Instalar el plugin de Docker Compose para Amazon Linux 2023
-              dnf install -y docker-compose-plugin
+              # Instalar Docker Compose desde GitHub Releases (no disponible en los repos oficiales de AL2023)
+              curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-Linux-x86_64" -o /usr/local/bin/docker-compose
+              chmod +x /usr/local/bin/docker-compose
+              mkdir -p /usr/libexec/docker/cli-plugins
+              ln -s /usr/local/bin/docker-compose /usr/libexec/docker/cli-plugins/docker-compose
 
               # 2. Crear la estructura de directorios para la configuración de monitoreo
               mkdir -p /opt/mario-app/monitoring/prometheus
@@ -111,7 +114,7 @@ resource "aws_instance" "mario_app" {
               INNER_EOF
 
               # 6. Autenticarse en ECR y levantar los servicios
-              aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${aws_ecr_repository.mario_repo.repository_url}
+              aws ecr get-login-password --region ${var.aws_region} | docker login --username AWS --password-stdin ${split("/", aws_ecr_repository.mario_repo.repository_url)[0]}
               
               cd /opt/mario-app
               docker compose up -d

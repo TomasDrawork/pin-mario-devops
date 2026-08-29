@@ -31,7 +31,7 @@ resource "aws_security_group" "alb" {
 # 2. Grupo de Seguridad para la Instancia EC2 (Privada)
 resource "aws_security_group" "ec2" {
   name        = "${var.project_name}-ec2-sg"
-  description = "Permite trafico entrante únicamente desde el ALB"
+  description = "Permite trafico entrante unicamente desde el ALB"
   vpc_id      = aws_vpc.main.id
 
   # Entrada: Puerto 80 desde el Security Group del ALB únicamente
