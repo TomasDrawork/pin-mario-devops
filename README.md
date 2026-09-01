@@ -14,20 +14,6 @@ Aprovisiona una arquitectura multi-servicio segura, escalable y tolerante a fall
 
 ---
 
-## 📸 Demostración Visual y Evidencias
-
-### ☁️ Despliegue en Producción (AWS)
-| Juego en AWS (Vía ALB) | Dashboard de Grafana en Vivo (Vía SSM Tunnel) |
-| :---: | :---: |
-| ![Juego en AWS](entregables/aws/pruebasderequests.png) | ![Grafana AWS](entregables/aws/dashboardAWS2.png) |
-
-### 💻 Entorno de Desarrollo Local (Docker Compose)
-| Juego Local (`localhost:8081`) | Monitoreo Local (`localhost:3000`) |
-| :---: | :---: |
-| ![Juego Local](entregables/local/appmario.png) | ![Grafana Local](entregables/local/dashboard-grafana-local2.png) |
-
----
-
 ## 📁 Estructura del Repositorio
 * **`mario-rpg/`**: Aplicación web (HTML5/Canvas) empaquetada en un servidor Nginx ligero optimizado para exponer métricas (`/stub_status`).
 * **`monitoring/`**: Configuraciones de aprovisionamiento de Prometheus (`prometheus.yml`) y Grafana (`datasource.yml`).
@@ -117,4 +103,4 @@ terraform destroy -auto-approve
 
 ---
 
-*Proyecto desarrollado por **Tomás Drago (Grupo 15)** para la Diplomatura en DevOps.*
+*Proyecto desarrollado por **Tomás Drago** para la Diplomatura en DevOps.*
